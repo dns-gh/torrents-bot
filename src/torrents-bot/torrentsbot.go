@@ -1,16 +1,47 @@
 package main
 
 import (
+	"flag"
 	"log"
-	"os"
+	"path/filepath"
 
-	"github.com/dns-gh/t411-client/t411client"
+	"github.com/dns-gh/betterlog"
+	conf "github.com/dns-gh/flagsconfig"
+)
+
+const (
+	torrentsPathFlag = "torrents-path"
+	t411UsernameFlag = "t411-username"
+	t411PasswordFlag = "t411-password"
+	bsUsernameFlag   = "bs-username"
+	bsPasswordFlag   = "bs-password"
+	bsKeyFlag        = "BS_API_KEY"
+	configFilename   = "torrents-bot.config"
+	debugFlag        = "debug"
 )
 
 func main() {
-	_, err := t411client.NewT411Client("", os.Getenv("T411_USERNAME"), os.Getenv("T411_PASSWORD"))
+	torrentsPath := flag.String(torrentsPathFlag, "./torrents", "[bot / t411] torrents folder")
+	t411Username := flag.String(t411UsernameFlag, "", "[bot / t411] username")
+	t411Password := flag.String(t411PasswordFlag, "", "[bot / t411] password")
+	bsUsername := flag.String(bsUsernameFlag, "", "[bot / bs] username")
+	bsPassword := flag.String(bsPasswordFlag, "", "[bot / bs] password")
+	bsKey := flag.String(bsKeyFlag, "", "[bot / bs] api key")
+	debug := flag.Bool(debugFlag, false, "[bot] debug mode")
+	_, err := conf.NewConfig(configFilename)
+	f, err := betterlog.MakeDateLogger(filepath.Join("debug", "tbot.log"))
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-	log.Println("success")
+	defer f.Close()
+	log.Printf("[bot / t411] %s: %s\n", torrentsPathFlag, *torrentsPath)
+	log.Printf("[bot / t411] %s: %s\n", t411UsernameFlag, *t411Username)
+	log.Printf("[bot / t411] %s: %s\n", t411PasswordFlag, *t411Password)
+	log.Printf("[bot / bs] %s: %s\n", bsUsernameFlag, *bsUsername)
+	log.Printf("[bot / bs] %s: %s\n", bsPasswordFlag, *bsPassword)
+	log.Printf("[bot / bs] %s: %s\n", bsKeyFlag, *bsKey)
+	log.Printf("[bot] %s: %t\n", debugFlag, *debug)
+
+	manager := makeTorrentManager(*torrentsPath, *bsKey, *bsUsername, *bsPassword, *t411Username, *t411Password)
+	manager.Run()
 }
