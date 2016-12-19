@@ -78,32 +78,47 @@ func (t *torrentManager) moveToTorrentsPath(tmp string) bool {
 	return true
 }
 
+func (t *torrentManager) DownloadWithQuality(v *bs.Episode, quality string) error {
+	tmpFile, err := t.t411Client.DownloadTorrentByTerms(v.Show.Title, v.Season, v.Episode, "VOSTFR", quality)
+	if err != nil {
+		return err
+	}
+	if t.moveToTorrentsPath(tmpFile) {
+		_, err := t.bsClient.EpisodeDownloaded(v.ID)
+		if err != nil {
+			return err
+		}
+		log.Printf("%s - S%02dE%02d downloaded\n", v.Show.Title, v.Season, v.Episode)
+	}
+	return nil
+}
+
 func (t *torrentManager) Run() {
 	ticker := time.NewTicker(planningFetchFreq)
 	defer ticker.Stop()
 	for _ = range ticker.C {
-		episodes, err := t.bsClient.PlanningMember(-1, true, "")
+		shows, err := t.bsClient.EpisodesList(-1, -1)
 		if err != nil {
 			log.Println(err.Error())
 			continue
 		}
-		log.Printf("checking for %d episode(s)...\n", len(episodes))
-		for _, v := range episodes {
-			log.Printf("trying %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
-			if !v.User.Downloaded {
-				tmpFile, err := t.t411Client.DownloadTorrentByTerms(v.Show.Title, v.Season, v.Episode, "VOSTFR", "TVripHD 720 [Rip HD depuis Source Tv HD]")
-				if err != nil {
-					if err != t411.ErrTorrentNotFound {
-						log.Println(err.Error())
+		log.Printf("checking for episode(s) to download in %d shows...\n", len(shows))
+		for _, s := range shows {
+			for _, v := range s.Unseen {
+				log.Printf("trying HD %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
+				if !v.User.Downloaded {
+					err := t.DownloadWithQuality(&v, "TVripHD 720 [Rip HD depuis Source Tv HD]")
+					if err != nil && err == t411.ErrTorrentNotFound {
+						log.Printf("trying SD %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
+						err = t.DownloadWithQuality(&v, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]")
+						if err != nil && err == t411.ErrTorrentNotFound {
+							log.Printf("trying (no quality filter) %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
+							err = t.DownloadWithQuality(&v, "")
+							if err != t411.ErrTorrentNotFound {
+								log.Println(err.Error())
+							}
+						}
 					}
-					continue
-				}
-				if t.moveToTorrentsPath(tmpFile) {
-					_, err := t.bsClient.EpisodeDownloaded(v.ID)
-					if err != nil {
-						log.Println(err.Error())
-					}
-					log.Printf("%s - S%02dE%02d downloaded\n", v.Show.Title, v.Season, v.Episode)
 				}
 			}
 		}
