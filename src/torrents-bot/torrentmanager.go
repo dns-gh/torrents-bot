@@ -4,8 +4,6 @@ import (
 	"log"
 	"time"
 
-	"strconv"
-
 	"os"
 	"path/filepath"
 
@@ -21,7 +19,6 @@ type torrentManager struct {
 	bsClient     *bs.BetaSeries
 	t411Client   *t411.T411
 	torrentsPath string
-	torrents     map[string]bool
 }
 
 func makeTorrentPath(path string) string {
@@ -58,7 +55,6 @@ func makeTorrentManager(torrentsPath, bsKey, bsUsername, bsPassword, t411Usernam
 		bsClient:     bsClient,
 		t411Client:   t411Client,
 		torrentsPath: makeTorrentPath(torrentsPath),
-		torrents:     make(map[string]bool),
 	}
 	return manager
 }
@@ -70,7 +66,7 @@ func (t *torrentManager) moveToTorrentsPath(tmp string) bool {
 			log.Println(err.Error())
 		}
 	}()
-	dst := filepath.Join(t.torrentsPath, filepath.Base(tmp)+".torrent")
+	dst := filepath.Join(t.torrentsPath, filepath.Base(tmp))
 	err := os.Rename(tmp, dst)
 	if err != nil {
 		err = copyFile(tmp, dst)
@@ -91,17 +87,23 @@ func (t *torrentManager) Run() {
 			log.Println(err.Error())
 			continue
 		}
+		log.Printf("checking for %d episode(s)...\n", len(episodes))
 		for _, v := range episodes {
-			if downloaded, ok := t.torrents[strconv.Itoa(v.ID)]; !ok || !downloaded {
-				log.Println("TV Show:", v.Show.Title)
-				t.torrents[strconv.Itoa(v.ID)] = false
-				tmpFile, err := t.t411Client.DownloadTorrentByTerms(v.Show.Title, v.Season, v.Episode, "VOSTFR", "")
+			log.Printf("trying %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
+			if !v.User.Downloaded {
+				tmpFile, err := t.t411Client.DownloadTorrentByTerms(v.Show.Title, v.Season, v.Episode, "VOSTFR", "TVripHD 720 [Rip HD depuis Source Tv HD]")
 				if err != nil {
-					log.Println(err.Error())
+					if err != t411.ErrTorrentNotFound {
+						log.Println(err.Error())
+					}
 					continue
 				}
 				if t.moveToTorrentsPath(tmpFile) {
-					t.torrents[strconv.Itoa(v.ID)] = true
+					_, err := t.bsClient.EpisodeDownloaded(v.ID)
+					if err != nil {
+						log.Println(err.Error())
+					}
+					log.Printf("%s - S%02dE%02d downloaded\n", v.Show.Title, v.Season, v.Episode)
 				}
 			}
 		}
