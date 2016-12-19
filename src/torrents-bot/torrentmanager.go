@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	planningFetchFreq = 10 * time.Second
+	planningFetchFreq = 10 * time.Minute
 )
 
 type torrentManager struct {
@@ -78,8 +78,8 @@ func (t *torrentManager) moveToTorrentsPath(tmp string) bool {
 	return true
 }
 
-func (t *torrentManager) DownloadWithQuality(v *bs.Episode, quality string) error {
-	tmpFile, err := t.t411Client.DownloadTorrentByTerms(v.Show.Title, v.Season, v.Episode, "VOSTFR", quality)
+func (t *torrentManager) DownloadWithQuality(v *bs.Episode, quality, date string) error {
+	tmpFile, err := t.t411Client.DownloadTorrentByTerms(v.Show.Title, v.Season, v.Episode, "VOSTFR", quality, date)
 	if err != nil {
 		return err
 	}
@@ -107,14 +107,14 @@ func (t *torrentManager) Run() {
 			for _, v := range s.Unseen {
 				log.Printf("trying HD %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
 				if !v.User.Downloaded {
-					err := t.DownloadWithQuality(&v, "TVripHD 720 [Rip HD depuis Source Tv HD]")
+					err := t.DownloadWithQuality(&v, "TVripHD 720 [Rip HD depuis Source Tv HD]", v.Date)
 					if err != nil && err == t411.ErrTorrentNotFound {
 						log.Printf("trying SD %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
-						err = t.DownloadWithQuality(&v, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]")
+						err = t.DownloadWithQuality(&v, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]", v.Date)
 						if err != nil && err == t411.ErrTorrentNotFound {
 							log.Printf("trying (no quality filter) %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
-							err = t.DownloadWithQuality(&v, "")
-							if err != t411.ErrTorrentNotFound {
+							err = t.DownloadWithQuality(&v, "", v.Date)
+							if err != nil && err != t411.ErrTorrentNotFound {
 								log.Println(err.Error())
 							}
 						}
