@@ -1,10 +1,12 @@
 # torrents-bot
 
-torrents-bot is a Go bot managing torrents and videos. It uses t411 and betaseries APIs: https://api.t411.li/ and https://www.betaseries.com/api/
+[![Go Report Card](https://goreportcard.com/badge/github.com/dns-gh/torrents-bot)](https://goreportcard.com/report/github.com/dns-gh/torrents-bot)
+
+torrents-bot is a Go bot managing tv show torrents. It uses t411 and betaseries APIs: https://api.t411.li/ and https://www.betaseries.com/api/
 
 ## Motivation
 
-For fun, practice and to automatize torrents/video downloading tasks.
+For fun, practice and to automatize torrents downloading tasks.
 
 Feel free to join my efforts!
 
@@ -26,22 +28,35 @@ or:
 @working_dir $ source build/go.sh
 ```
 
-and then set up your API keys/tokens/secrets:
+and then set up your API keys/tokens/secrets in a torrents-bot.config file
 
 ```
-export T411_USERNAME="your_t411_username"
-export T411_PASSWORD="your_t411_password"
-export BS_API_KEY="your_betaseries_api_key"
+{
+    "BS_API_KEY": "your_betaseries_api_key",
+    "bs-password": "your_betaseries_password",
+    "bs-username": "your_betaseries_username",
+    "debug": "false",
+    "t411-password": "your_t411_password",
+    "t411-username": "your_t411_username",
+    "torrents-path": "./torrents"
+}
 ```
 
-You can find get them here: http://www.t411.li/ and https://www.betaseries.com/api/
+You can get them here: http://www.t411.li/ and https://www.betaseries.com/api/
 
 ## Build and usage
 
 ```
+@working_dir $ go get ./...
 @working_dir $ go install torrents-bot
 @working_dir $ bin/torrents-bot.exe
 ```
+will :
+
+- download every unseen tv show episode of your betaseries account from the t411 website into 'torrents-path' folder.
+- mark them as 'downloaded' in your betaseries account.
+
+Make sure to load torrents from this path with your torrent client in order to download them automatically.
 
 ## License
 

@@ -96,7 +96,7 @@ func (t *torrentManager) DownloadWithQuality(v *bs.Episode, quality, date string
 func (t *torrentManager) Run() {
 	ticker := time.NewTicker(planningFetchFreq)
 	defer ticker.Stop()
-	for _ = range ticker.C {
+	for range ticker.C {
 		shows, err := t.bsClient.EpisodesList(-1, -1)
 		if err != nil {
 			log.Println(err.Error())
@@ -105,8 +105,8 @@ func (t *torrentManager) Run() {
 		log.Printf("checking for episode(s) to download in %d shows...\n", len(shows))
 		for _, s := range shows {
 			for _, v := range s.Unseen {
-				log.Printf("trying HD %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
 				if !v.User.Downloaded {
+					log.Printf("trying HD %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
 					err := t.DownloadWithQuality(&v, "TVripHD 720 [Rip HD depuis Source Tv HD]", v.Date)
 					if err != nil && err == t411.ErrTorrentNotFound {
 						log.Printf("trying SD %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
