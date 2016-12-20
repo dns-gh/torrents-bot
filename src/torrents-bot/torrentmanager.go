@@ -93,6 +93,12 @@ func (t *torrentManager) DownloadWithQuality(v *bs.Episode, quality, date string
 	return nil
 }
 
+func isTorrentNotFound(err error) bool {
+	return err != nil && err == t411.ErrTorrentNotFound
+}
+
+// TODO: add webrip quality filter download just after SD quality ?
+// it may be useful for shows displayed on websites first.
 func (t *torrentManager) Run() {
 	ticker := time.NewTicker(planningFetchFreq)
 	defer ticker.Stop()
@@ -108,16 +114,17 @@ func (t *torrentManager) Run() {
 				if !v.User.Downloaded {
 					log.Printf("trying HD %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
 					err := t.DownloadWithQuality(&v, "TVripHD 720 [Rip HD depuis Source Tv HD]", v.Date)
-					if err != nil && err == t411.ErrTorrentNotFound {
+					if isTorrentNotFound(err) {
 						log.Printf("trying SD %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
 						err = t.DownloadWithQuality(&v, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]", v.Date)
-						if err != nil && err == t411.ErrTorrentNotFound {
+						if isTorrentNotFound(err) {
 							log.Printf("trying (no quality filter) %s - S%02dE%02d\n", v.Show.Title, v.Season, v.Episode)
 							err = t.DownloadWithQuality(&v, "", v.Date)
-							if err != nil && err != t411.ErrTorrentNotFound {
-								log.Println(err.Error())
-							}
 						}
+					}
+					// if the error is not of type "not Found", log it
+					if err != nil && err != t411.ErrTorrentNotFound {
+						log.Println(err.Error())
 					}
 				}
 			}
