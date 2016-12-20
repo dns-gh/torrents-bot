@@ -43,5 +43,10 @@ func main() {
 	log.Printf("[bot] %s: %t\n", debugFlag, *debug)
 
 	manager := makeTorrentManager(*torrentsPath, *bsKey, *bsUsername, *bsPassword, *t411Username, *t411Password)
+	token, err := manager.t411Client.GetToken()
+	if err != nil {
+		token = err.Error()
+	}
+	log.Printf("[bot / t411] token: %s\n", token)
 	manager.Run()
 }
