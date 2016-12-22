@@ -2,3 +2,4 @@ pkg/
 .vscode/settings.json
 torrents/
 torrents-bot.config
+bin/

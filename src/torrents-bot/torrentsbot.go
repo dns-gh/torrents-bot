@@ -18,6 +18,7 @@ const (
 	bsKeyFlag        = "BS_API_KEY"
 	configFilename   = "torrents-bot.config"
 	debugFlag        = "debug"
+	singleFlag       = "single"
 )
 
 func main() {
@@ -27,6 +28,7 @@ func main() {
 	bsUsername := flag.String(bsUsernameFlag, "", "[bot / bs] username")
 	bsPassword := flag.String(bsPasswordFlag, "", "[bot / bs] password")
 	bsKey := flag.String(bsKeyFlag, "", "[bot / bs] api key")
+	single := flag.Bool(singleFlag, false, "[bot] single shot mode")
 	debug := flag.Bool(debugFlag, false, "[bot] debug mode")
 	_, err := conf.NewConfig(configFilename)
 	f, err := betterlog.MakeDateLogger(filepath.Join("debug", "tbot.log"))
@@ -42,7 +44,7 @@ func main() {
 	log.Printf("[bot / bs] %s: %s\n", bsKeyFlag, *bsKey)
 	log.Printf("[bot] %s: %t\n", debugFlag, *debug)
 
-	manager := makeTorrentManager(*torrentsPath, *bsKey, *bsUsername, *bsPassword, *t411Username, *t411Password)
+	manager := makeTorrentManager(*debug, *single, *torrentsPath, *bsKey, *bsUsername, *bsPassword, *t411Username, *t411Password)
 	token, err := manager.t411Client.GetToken()
 	if err != nil {
 		token = err.Error()
