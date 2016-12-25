@@ -81,7 +81,7 @@ func (t *torrentManager) moveToTorrentsPath(tmp string) bool {
 	return true
 }
 
-func (t *torrentManager) DownloadWithQuality(v *bs.Episode, quality, date string) error {
+func (t *torrentManager) DownloadEpisodeWithQuality(v *bs.Episode, quality, date string) error {
 	tmpFile, err := t.t411Client.DownloadTorrentByTerms(v.Show.Title, v.Season, v.Episode, "VOSTFR", quality, date)
 	if err != nil {
 		return err
@@ -92,8 +92,77 @@ func (t *torrentManager) DownloadWithQuality(v *bs.Episode, quality, date string
 			return err
 		}
 		log.Printf("%s - S%02dE%02d downloaded\n", v.Show.Title, v.Season, v.Episode)
+		return nil
 	}
-	return nil
+	return fmt.Errorf("could not move torrent to output path")
+}
+
+func (t *torrentManager) DownloadSeriesWithQuality(v *bs.Show, season int, quality string) error {
+	tmpFile, err := t.t411Client.DownloadTorrentByTerms(v.Title, season, 0, "VOSTFR", quality, "")
+	if err != nil {
+		return err
+	}
+	if t.moveToTorrentsPath(tmpFile) {
+		episodes, err := t.bsClient.ShowsEpisodes(v.ID, season, 0)
+		if err != nil {
+			log.Println(err.Error())
+		}
+		for _, episode := range episodes {
+			_, err := t.bsClient.EpisodeDownloaded(episode.ID)
+			if err != nil {
+				log.Println(err.Error())
+			}
+		}
+		if season == 0 {
+			log.Printf("%s - %s seasons / complete series downloaded\n", v.Title, v.Seasons)
+		} else {
+			log.Printf("%s - season %d complete downloaded\n", v.Title, season)
+		}
+		return nil
+	}
+	return fmt.Errorf("could not move torrent to output path")
+}
+
+func (t *torrentManager) DownloadSeries(v *bs.Show) error {
+	t.print(fmt.Sprintf("trying HD %s - %s complete seasons", v.Title, v.Seasons))
+	err := t.DownloadSeriesWithQuality(v, 0, "TVripHD 720 [Rip HD depuis Source Tv HD]")
+	if isTorrentNotFound(err) {
+		t.print(fmt.Sprintf("trying SD %s - %s complete seasons", v.Title, v.Seasons))
+		err = t.DownloadSeriesWithQuality(v, 0, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]")
+		if isTorrentNotFound(err) {
+			t.print(fmt.Sprintf("trying NQ %s - %s complete seasons", v.Title, v.Seasons))
+			err = t.DownloadSeriesWithQuality(v, 0, "")
+		}
+	}
+	return err
+}
+
+func (t *torrentManager) DownloadSeason(v *bs.Show, season int) error {
+	t.print(fmt.Sprintf("trying HD %s - season %d complete", v.Title, season))
+	err := t.DownloadSeriesWithQuality(v, season, "TVripHD 720 [Rip HD depuis Source Tv HD]")
+	if isTorrentNotFound(err) {
+		t.print(fmt.Sprintf("trying SD %s - season %d complete", v.Title, season))
+		err = t.DownloadSeriesWithQuality(v, season, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]")
+		if isTorrentNotFound(err) {
+			t.print(fmt.Sprintf("trying NQ %s - season %d complete", v.Title, season))
+			err = t.DownloadSeriesWithQuality(v, season, "")
+		}
+	}
+	return err
+}
+
+func (t *torrentManager) DownloadEpisode(v *bs.Episode) error {
+	t.print(fmt.Sprintf("trying HD %s - S%02dE%02d", v.Show.Title, v.Season, v.Episode))
+	err := t.DownloadEpisodeWithQuality(v, "TVripHD 720 [Rip HD depuis Source Tv HD]", v.Date)
+	if isTorrentNotFound(err) {
+		t.print(fmt.Sprintf("trying SD %s - S%02dE%02d", v.Show.Title, v.Season, v.Episode))
+		err = t.DownloadEpisodeWithQuality(v, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]", v.Date)
+		if isTorrentNotFound(err) {
+			t.print(fmt.Sprintf("trying NQ %s - S%02dE%02d", v.Show.Title, v.Season, v.Episode))
+			err = t.DownloadEpisodeWithQuality(v, "", v.Date)
+		}
+	}
+	return err
 }
 
 func isTorrentNotFound(err error) bool {
@@ -106,6 +175,13 @@ func (t *torrentManager) print(text string) {
 	}
 }
 
+func logIfNotTorrentNotFound(err error) {
+	// if the error is not of type "not Found", log it
+	if err != nil && err != t411.ErrTorrentNotFound {
+		log.Println(err.Error())
+	}
+}
+
 func (t *torrentManager) download() {
 	shows, err := t.bsClient.EpisodesList(-1, -1)
 	if err != nil {
@@ -114,22 +190,52 @@ func (t *torrentManager) download() {
 	}
 	log.Printf("checking for episode(s) to download in %d shows...\n", len(shows))
 	for _, s := range shows {
+		seasonsToSkip := make(map[int]struct{})
 		for _, v := range s.Unseen {
-			if !v.User.Downloaded {
-				t.print(fmt.Sprintf("trying HD %s - S%02dE%02d", v.Show.Title, v.Season, v.Episode))
-				err := t.DownloadWithQuality(&v, "TVripHD 720 [Rip HD depuis Source Tv HD]", v.Date)
-				if isTorrentNotFound(err) {
-					t.print(fmt.Sprintf("trying SD %s - S%02dE%02d", v.Show.Title, v.Season, v.Episode))
-					err = t.DownloadWithQuality(&v, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]", v.Date)
-					if isTorrentNotFound(err) {
-						t.print(fmt.Sprintf("trying (no quality filter) %s - S%02dE%02d", v.Show.Title, v.Season, v.Episode))
-						err = t.DownloadWithQuality(&v, "", v.Date)
+			_, ok := seasonsToSkip[v.Season]
+			if !v.User.Downloaded && !ok {
+				show, err := t.bsClient.ShowDisplay(v.Show.ID)
+				if err != nil {
+					log.Println(err.Error())
+					break
+				}
+				// if the episode is not special
+				// waiting for bug fix for https://www.betaseries.com/bugs/api/386
+				// for this to properly work.
+				if v.Special != 1 {
+					t.t411Client.OnlyVerified(true)
+					// at first unseen episode of a show, try to download the complete series
+					// TODO: maybe add an option to check if the unseen episode is the first of the show
+					// since if the user has already seen most of the show, he doesn't want to download the whole thing ?
+					if show.Status == "Ended" {
+						err := t.DownloadSeries(show)
+						if err == nil {
+							break
+						}
+						logIfNotTorrentNotFound(err)
+						// try to download season by season if complete series is not found
+						err = t.DownloadSeason(show, v.Season)
+						if err == nil {
+							seasonsToSkip[v.Season] = struct{}{}
+							continue
+						}
+						logIfNotTorrentNotFound(err)
+					}
+
+					if show.Status == "Continuing" {
+						err := t.DownloadSeason(show, v.Season)
+						if err == nil {
+							seasonsToSkip[v.Season] = struct{}{}
+							continue
+						}
+						logIfNotTorrentNotFound(err)
 					}
 				}
-				// if the error is not of type "not Found", log it
-				if err != nil && err != t411.ErrTorrentNotFound {
-					log.Println(err.Error())
-				}
+
+				// download the unseen episode
+				t.t411Client.OnlyVerified(false)
+				err = t.DownloadEpisode(&v)
+				logIfNotTorrentNotFound(err)
 			}
 		}
 	}
@@ -142,7 +248,7 @@ func (t *torrentManager) Run() {
 		t.download()
 		return
 	}
-	ticker := time.NewTicker(planningFetchFreq)
+	ticker := time.NewTicker(t.planningFetchFreq)
 	defer ticker.Stop()
 	for range ticker.C {
 		t.download()
