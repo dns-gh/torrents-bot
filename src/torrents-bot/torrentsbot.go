@@ -10,19 +10,21 @@ import (
 )
 
 const (
-	torrentsPathFlag = "torrents-path"
-	t411UsernameFlag = "t411-username"
-	t411PasswordFlag = "t411-password"
-	bsUsernameFlag   = "bs-username"
-	bsPasswordFlag   = "bs-password"
-	bsKeyFlag        = "BS_API_KEY"
-	configFilename   = "torrents-bot.config"
-	debugFlag        = "debug"
-	singleFlag       = "single"
+	torrentsPathFlag      = "torrents-path"
+	planningFetchFreqFlag = "freq"
+	t411UsernameFlag      = "t411-username"
+	t411PasswordFlag      = "t411-password"
+	bsUsernameFlag        = "bs-username"
+	bsPasswordFlag        = "bs-password"
+	bsKeyFlag             = "BS_API_KEY"
+	configFilename        = "torrents-bot.config"
+	debugFlag             = "debug"
+	singleFlag            = "single"
 )
 
 func main() {
 	torrentsPath := flag.String(torrentsPathFlag, "./torrents", "[bot / t411] torrents folder")
+	planningFetchFreq := flag.Int(planningFetchFreqFlag, 10, "[bot] planning fetch frequency in minutes")
 	t411Username := flag.String(t411UsernameFlag, "", "[bot / t411] username")
 	t411Password := flag.String(t411PasswordFlag, "", "[bot / t411] password")
 	bsUsername := flag.String(bsUsernameFlag, "", "[bot / bs] username")
@@ -37,6 +39,7 @@ func main() {
 	}
 	defer f.Close()
 	log.Printf("[bot / t411] %s: %s\n", torrentsPathFlag, *torrentsPath)
+	log.Printf("[bot] %s: %d\n", planningFetchFreqFlag, *planningFetchFreq)
 	log.Printf("[bot / t411] %s: %s\n", t411UsernameFlag, *t411Username)
 	log.Printf("[bot / t411] %s: %s\n", t411PasswordFlag, *t411Password)
 	log.Printf("[bot / bs] %s: %s\n", bsUsernameFlag, *bsUsername)
@@ -44,7 +47,7 @@ func main() {
 	log.Printf("[bot / bs] %s: %s\n", bsKeyFlag, *bsKey)
 	log.Printf("[bot] %s: %t\n", debugFlag, *debug)
 
-	manager := makeTorrentManager(*debug, *single, *torrentsPath, *bsKey, *bsUsername, *bsPassword, *t411Username, *t411Password)
+	manager := makeTorrentManager(*debug, *single, *torrentsPath, *planningFetchFreq, *bsKey, *bsUsername, *bsPassword, *t411Username, *t411Password)
 	token, err := manager.t411Client.GetToken()
 	if err != nil {
 		token = err.Error()

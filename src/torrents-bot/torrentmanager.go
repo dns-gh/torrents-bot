@@ -12,16 +12,13 @@ import (
 	t411 "github.com/dns-gh/t411-client/t411client"
 )
 
-var (
-	planningFetchFreq = 10 * time.Minute
-)
-
 type torrentManager struct {
-	bsClient     *bs.BetaSeries
-	t411Client   *t411.T411
-	torrentsPath string
-	singleShot   bool
-	debug        bool
+	bsClient          *bs.BetaSeries
+	t411Client        *t411.T411
+	torrentsPath      string
+	planningFetchFreq time.Duration
+	singleShot        bool
+	debug             bool
 }
 
 func makeTorrentPath(path string) string {
@@ -43,7 +40,7 @@ func makeTorrentPath(path string) string {
 	return torrentsPath
 }
 
-func makeTorrentManager(debug, single bool, torrentsPath, bsKey, bsUsername, bsPassword, t411Username, t411Password string) *torrentManager {
+func makeTorrentManager(debug, single bool, torrentsPath string, planningFetchFreq int, bsKey, bsUsername, bsPassword, t411Username, t411Password string) *torrentManager {
 	t411Client, err := t411.NewT411Client("", t411Username, t411Password)
 	if err != nil {
 		log.Fatalln(err.Error())
@@ -55,11 +52,12 @@ func makeTorrentManager(debug, single bool, torrentsPath, bsKey, bsUsername, bsP
 	}
 
 	manager := &torrentManager{
-		bsClient:     bsClient,
-		t411Client:   t411Client,
-		torrentsPath: makeTorrentPath(torrentsPath),
-		singleShot:   single,
-		debug:        debug,
+		bsClient:          bsClient,
+		t411Client:        t411Client,
+		torrentsPath:      makeTorrentPath(torrentsPath),
+		planningFetchFreq: time.Duration(planningFetchFreq) * time.Minute,
+		singleShot:        single,
+		debug:             debug,
 	}
 	return manager
 }
