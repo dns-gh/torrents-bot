@@ -200,8 +200,6 @@ func (t *torrentManager) download() {
 					break
 				}
 				// if the episode is not special
-				// waiting for bug fix for https://www.betaseries.com/bugs/api/386
-				// for this to properly work.
 				if v.Special != 1 {
 					t.t411Client.OnlyVerified(true)
 					// at first unseen episode of a show, try to download the complete series
