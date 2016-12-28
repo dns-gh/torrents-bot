@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"os"
@@ -65,7 +66,7 @@ func makeTorrentManager(debug, single bool, torrentsPath string, planningFetchFr
 func (t *torrentManager) moveToTorrentsPath(tmp string) bool {
 	defer func() {
 		err := os.Remove(tmp)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "The system cannot find the file specified") {
 			log.Println(err.Error())
 		}
 	}()
