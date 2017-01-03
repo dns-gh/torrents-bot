@@ -14,6 +14,7 @@ const (
 	planningFetchFreqFlag = "freq"
 	t411UsernameFlag      = "t411-username"
 	t411PasswordFlag      = "t411-password"
+	t411TokenFlag         = "t411-token"
 	bsUsernameFlag        = "bs-username"
 	bsPasswordFlag        = "bs-password"
 	bsKeyFlag             = "BS_API_KEY"
@@ -27,12 +28,13 @@ func main() {
 	planningFetchFreq := flag.Int(planningFetchFreqFlag, 10, "[bot] planning fetch frequency in minutes")
 	t411Username := flag.String(t411UsernameFlag, "", "[bot / t411] username")
 	t411Password := flag.String(t411PasswordFlag, "", "[bot / t411] password")
+	t411Token := flag.String(t411TokenFlag, "", "[bot / t411] token (optional)")
 	bsUsername := flag.String(bsUsernameFlag, "", "[bot / bs] username")
 	bsPassword := flag.String(bsPasswordFlag, "", "[bot / bs] password")
 	bsKey := flag.String(bsKeyFlag, "", "[bot / bs] api key")
 	single := flag.Bool(singleFlag, false, "[bot] single shot mode")
 	debug := flag.Bool(debugFlag, false, "[bot] debug mode")
-	_, err := conf.NewConfig(configFilename)
+	config, err := conf.NewConfig(configFilename)
 	f, err := betterlog.MakeDateLogger(filepath.Join("debug", "tbot.log"))
 	if err != nil {
 		log.Fatalln(err.Error())
@@ -47,11 +49,12 @@ func main() {
 	log.Printf("[bot / bs] %s: %s\n", bsKeyFlag, *bsKey)
 	log.Printf("[bot] %s: %t\n", debugFlag, *debug)
 
-	manager := makeTorrentManager(*debug, *single, *torrentsPath, *planningFetchFreq, *bsKey, *bsUsername, *bsPassword, *t411Username, *t411Password)
+	manager := makeTorrentManager(*debug, *single, *torrentsPath, *planningFetchFreq, *bsKey, *bsUsername, *bsPassword, *t411Username, *t411Password, *t411Token)
 	token, err := manager.t411Client.GetToken()
 	if err != nil {
 		token = err.Error()
 	}
-	log.Printf("[bot / t411] token: %s\n", token)
+	config.Update(t411TokenFlag, token)
+	log.Printf("[bot / t411] %s: %s\n", t411TokenFlag, token)
 	manager.Run()
 }
