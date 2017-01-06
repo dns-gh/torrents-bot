@@ -202,11 +202,10 @@ func (t *torrentManager) download() {
 					break
 				}
 				// if the episode is not special
-				if v.Special != 1 {
+				// and the episode is not the first
+				// then try to download the complete series or season
+				if v.Special != 1 && v.Episode <= 1 {
 					t.t411Client.OnlyVerified(true)
-					// at first unseen episode of a show, try to download the complete series
-					// TODO: maybe add an option to check if the unseen episode is the first of the show
-					// since if the user has already seen most of the show, he doesn't want to download the whole thing ?
 					if show.Status == "Ended" {
 						err := t.DownloadSeries(show)
 						if err == nil {
