@@ -99,8 +99,8 @@ func (t *torrentManager) DownloadEpisodeWithQuality(v *bs.Episode, quality, date
 	return fmt.Errorf("could not move torrent to output path")
 }
 
-func (t *torrentManager) DownloadSeriesWithQuality(v *bs.Show, season int, quality string) error {
-	tmpFile, err := t.t411Client.DownloadTorrentByTerms(v.Title, season, 0, "VOSTFR", quality, "")
+func (t *torrentManager) DownloadSeriesWithQuality(v *bs.Show, alias string, season int, quality string) error {
+	tmpFile, err := t.t411Client.DownloadTorrentByTerms(alias, season, 0, "VOSTFR", quality, "")
 	if err != nil {
 		return err
 	}
@@ -125,50 +125,67 @@ func (t *torrentManager) DownloadSeriesWithQuality(v *bs.Show, season int, quali
 	return fmt.Errorf("could not move torrent to output path")
 }
 
+func (t *torrentManager) DownloadSeriesWithAlias(v *bs.Show, alias string) (err error) {
+	t.print(fmt.Sprintf("trying HD %s - %s complete seasons", alias, v.Seasons))
+	if err = t.DownloadSeriesWithQuality(v, alias, 0, "TVripHD 720 [Rip HD depuis Source Tv HD]"); err != nil {
+		t.print(fmt.Sprintf("trying SD %s - %s complete seasons", alias, v.Seasons))
+		if err = t.DownloadSeriesWithQuality(v, alias, 0, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]"); err != nil {
+			t.print(fmt.Sprintf("trying NQ %s - %s complete seasons", alias, v.Seasons))
+			return t.DownloadSeriesWithQuality(v, alias, 0, "")
+		}
+	}
+	return nil
+}
+
 func (t *torrentManager) DownloadSeries(v *bs.Show) error {
-	t.print(fmt.Sprintf("trying HD %s - %s complete seasons", v.Title, v.Seasons))
-	err := t.DownloadSeriesWithQuality(v, 0, "TVripHD 720 [Rip HD depuis Source Tv HD]")
-	if isTorrentNotFound(err) {
-		t.print(fmt.Sprintf("trying SD %s - %s complete seasons", v.Title, v.Seasons))
-		err = t.DownloadSeriesWithQuality(v, 0, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]")
-		if isTorrentNotFound(err) {
-			t.print(fmt.Sprintf("trying NQ %s - %s complete seasons", v.Title, v.Seasons))
-			err = t.DownloadSeriesWithQuality(v, 0, "")
+	err := t.DownloadSeriesWithAlias(v, v.Title)
+	if err != nil {
+		for _, alias := range v.Aliases {
+			err := t.DownloadSeriesWithAlias(v, alias)
+			if err != nil {
+				continue
+			}
 		}
 	}
 	return err
+}
+
+func (t *torrentManager) DownloadSeasonWithAlias(v *bs.Show, alias string, season int) (err error) {
+	t.print(fmt.Sprintf("trying HD %s - season %d complete", alias, season))
+	if err = t.DownloadSeriesWithQuality(v, alias, season, "TVripHD 720 [Rip HD depuis Source Tv HD]"); err != nil {
+		t.print(fmt.Sprintf("trying SD %s - season %d complete", alias, season))
+		if err = t.DownloadSeriesWithQuality(v, alias, season, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]"); err != nil {
+			t.print(fmt.Sprintf("trying NQ %s - season %d complete", alias, season))
+			return t.DownloadSeriesWithQuality(v, alias, season, "")
+		}
+		return nil
+	}
+	return nil
 }
 
 func (t *torrentManager) DownloadSeason(v *bs.Show, season int) error {
-	t.print(fmt.Sprintf("trying HD %s - season %d complete", v.Title, season))
-	err := t.DownloadSeriesWithQuality(v, season, "TVripHD 720 [Rip HD depuis Source Tv HD]")
-	if isTorrentNotFound(err) {
-		t.print(fmt.Sprintf("trying SD %s - season %d complete", v.Title, season))
-		err = t.DownloadSeriesWithQuality(v, season, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]")
-		if isTorrentNotFound(err) {
-			t.print(fmt.Sprintf("trying NQ %s - season %d complete", v.Title, season))
-			err = t.DownloadSeriesWithQuality(v, season, "")
+	err := t.DownloadSeasonWithAlias(v, v.Title, season)
+	if err != nil {
+		for _, alias := range v.Aliases {
+			err := t.DownloadSeasonWithAlias(v, alias, season)
+			if err != nil {
+				continue
+			}
 		}
 	}
 	return err
 }
 
-func (t *torrentManager) DownloadEpisode(v *bs.Episode) error {
+func (t *torrentManager) DownloadEpisode(v *bs.Episode) (err error) {
 	t.print(fmt.Sprintf("trying HD %s - S%02dE%02d", v.Show.Title, v.Season, v.Episode))
-	err := t.DownloadEpisodeWithQuality(v, "TVripHD 720 [Rip HD depuis Source Tv HD]", v.Date)
-	if isTorrentNotFound(err) {
+	if err = t.DownloadEpisodeWithQuality(v, "TVripHD 720 [Rip HD depuis Source Tv HD]", v.Date); err != nil {
 		t.print(fmt.Sprintf("trying SD %s - S%02dE%02d", v.Show.Title, v.Season, v.Episode))
-		err = t.DownloadEpisodeWithQuality(v, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]", v.Date)
-		if isTorrentNotFound(err) {
+		if err = t.DownloadEpisodeWithQuality(v, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]", v.Date); err != nil {
 			t.print(fmt.Sprintf("trying NQ %s - S%02dE%02d", v.Show.Title, v.Season, v.Episode))
-			err = t.DownloadEpisodeWithQuality(v, "", v.Date)
+			return t.DownloadEpisodeWithQuality(v, "", v.Date)
 		}
 	}
 	return err
-}
-
-func isTorrentNotFound(err error) bool {
-	return err != nil && err == t411.ErrTorrentNotFound
 }
 
 func (t *torrentManager) print(text string) {
