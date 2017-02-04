@@ -83,8 +83,8 @@ func (t *torrentManager) moveToTorrentsPath(tmp string) bool {
 	return true
 }
 
-func (t *torrentManager) DownloadEpisodeWithQuality(v *bs.Episode, quality, date string) error {
-	tmpFile, err := t.t411Client.DownloadTorrentByTerms(v.Show.Title, v.Season, v.Episode, "VOSTFR", quality, date)
+func (t *torrentManager) DownloadEpisodeWithQuality(v *bs.Episode, alias, quality, date string) error {
+	tmpFile, err := t.t411Client.DownloadTorrentByTerms(alias, v.Season, v.Episode, "VOSTFR", quality, date)
 	if err != nil {
 		return err
 	}
@@ -176,13 +176,26 @@ func (t *torrentManager) DownloadSeason(v *bs.Show, season int) error {
 	return err
 }
 
-func (t *torrentManager) DownloadEpisode(v *bs.Episode) (err error) {
-	t.print(fmt.Sprintf("trying HD %s - S%02dE%02d", v.Show.Title, v.Season, v.Episode))
-	if err = t.DownloadEpisodeWithQuality(v, "TVripHD 720 [Rip HD depuis Source Tv HD]", v.Date); err != nil {
-		t.print(fmt.Sprintf("trying SD %s - S%02dE%02d", v.Show.Title, v.Season, v.Episode))
-		if err = t.DownloadEpisodeWithQuality(v, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]", v.Date); err != nil {
-			t.print(fmt.Sprintf("trying NQ %s - S%02dE%02d", v.Show.Title, v.Season, v.Episode))
-			return t.DownloadEpisodeWithQuality(v, "", v.Date)
+func (t *torrentManager) DownloadEpisodeWithAlias(v *bs.Episode, alias string) (err error) {
+	t.print(fmt.Sprintf("trying HD %s - S%02dE%02d", alias, v.Season, v.Episode))
+	if err = t.DownloadEpisodeWithQuality(v, alias, "TVripHD 720 [Rip HD depuis Source Tv HD]", v.Date); err != nil {
+		t.print(fmt.Sprintf("trying SD %s - S%02dE%02d", alias, v.Season, v.Episode))
+		if err = t.DownloadEpisodeWithQuality(v, alias, "TVrip [Rip SD (non HD) depuis Source Tv HD/SD]", v.Date); err != nil {
+			t.print(fmt.Sprintf("trying NQ %s - S%02dE%02d", alias, v.Season, v.Episode))
+			return t.DownloadEpisodeWithQuality(v, alias, "", v.Date)
+		}
+	}
+	return err
+}
+
+func (t *torrentManager) DownloadEpisode(v *bs.Episode, aliases []string) error {
+	err := t.DownloadEpisodeWithAlias(v, v.Show.Title)
+	if err != nil {
+		for _, alias := range aliases {
+			err := t.DownloadEpisodeWithAlias(v, alias)
+			if err != nil {
+				continue
+			}
 		}
 	}
 	return err
@@ -198,6 +211,20 @@ func logIfNotTorrentNotFound(err error) {
 	// if the error is not of type "not Found", log it
 	if err != nil && err != t411.ErrTorrentNotFound {
 		log.Println(err.Error())
+	}
+}
+
+func checkAliases(v *bs.Show) {
+	if strings.Contains(v.Title, " (") {
+		for _, alias := range v.Aliases {
+			if !strings.ContainsAny(alias, "()") {
+				return
+			}
+		}
+		splitted := strings.Split(v.Title, " (")
+		if len(splitted) >= 1 {
+			v.Aliases = append(v.Aliases, splitted[0])
+		}
 	}
 }
 
@@ -247,10 +274,10 @@ func (t *torrentManager) download() {
 						logIfNotTorrentNotFound(err)
 					}
 				}
-
+				checkAliases(show)
 				// download the unseen episode
 				t.t411Client.OnlyVerified(false)
-				err = t.DownloadEpisode(&v)
+				err = t.DownloadEpisode(&v, show.Aliases)
 				logIfNotTorrentNotFound(err)
 			}
 		}
