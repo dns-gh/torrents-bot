@@ -42,8 +42,8 @@ func makeTorrentPath(path string) string {
 }
 
 func makeTorrentManager(debug, single bool, torrentsPath string, planningFetchFreq int,
-	bsKey, bsUsername, bsPassword, t411Username, t411Password, t411Token string) *torrentManager {
-	t411Client, err := t411.NewT411ClientWithToken("", t411Username, t411Password, t411Token)
+	bsKey, bsUsername, bsPassword, t411Username, t411Password, t411Token, t411URL string) *torrentManager {
+	t411Client, err := t411.NewT411ClientWithToken(t411URL, t411Username, t411Password, t411Token)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
