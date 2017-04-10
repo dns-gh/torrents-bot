@@ -41,13 +41,35 @@ func makeTorrentPath(path string) string {
 	return torrentsPath
 }
 
-func makeTorrentManager(debug, single bool, torrentsPath string, planningFetchFreq int,
-	bsKey, bsUsername, bsPassword, t411Username, t411Password, t411Token, t411URL string) *torrentManager {
+func throttleNewT411Client(t411URL, t411Username, t411Password, t411Token string, maxRetry, waitInterval int) (*t411.T411, error) {
+	if maxRetry <= 0 {
+		maxRetry = int(^uint(0) >> 1)
+	}
+	// trying to connect once
 	t411Client, err := t411.NewT411ClientWithToken(t411URL, t411Username, t411Password, t411Token)
+	if err != nil {
+		log.Println(err.Error())
+	} else {
+		return t411Client, nil
+	}
+	for i := 1; i < maxRetry; i++ {
+		time.Sleep(time.Duration(waitInterval) * time.Second)
+		t411Client, err := t411.NewT411ClientWithToken(t411URL, t411Username, t411Password, t411Token)
+		if err != nil {
+			log.Println(err.Error())
+			continue
+		}
+		return t411Client, nil
+	}
+	return nil, fmt.Errorf("throttleNewT411Client, max retry reached after %d tries", maxRetry)
+}
+
+func makeTorrentManager(debug, single bool, torrentsPath string, planningFetchFreq int,
+	bsKey, bsUsername, bsPassword, t411Username, t411Password, t411Token, t411URL string, t411MaxRetryt, t411waitInterval int) *torrentManager {
+	t411Client, err := throttleNewT411Client(t411URL, t411Username, t411Password, t411Token, t411MaxRetryt, t411waitInterval)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-
 	bsClient, err := bs.NewBetaseriesClient(bsKey, bsUsername, bsPassword)
 	if err != nil {
 		log.Fatalln(err.Error())

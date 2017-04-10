@@ -10,18 +10,20 @@ import (
 )
 
 const (
-	torrentsPathFlag      = "torrents-path"
-	planningFetchFreqFlag = "freq"
-	t411UsernameFlag      = "t411-username"
-	t411PasswordFlag      = "t411-password"
-	t411TokenFlag         = "t411-token"
-	t411URLFlag           = "t411-url"
-	bsUsernameFlag        = "bs-username"
-	bsPasswordFlag        = "bs-password"
-	bsKeyFlag             = "BS_API_KEY"
-	configFilename        = "torrents-bot.config"
-	debugFlag             = "debug"
-	singleFlag            = "single"
+	torrentsPathFlag           = "torrents-path"
+	planningFetchFreqFlag      = "freq"
+	t411UsernameFlag           = "t411-username"
+	t411PasswordFlag           = "t411-password"
+	t411TokenFlag              = "t411-token"
+	t411URLFlag                = "t411-url"
+	t411ConnectionMaxRetryFlag = "t411-max-retry"
+	t411ConnectionIntervalFlag = "t411-interval"
+	bsUsernameFlag             = "bs-username"
+	bsPasswordFlag             = "bs-password"
+	bsKeyFlag                  = "BS_API_KEY"
+	configFilename             = "torrents-bot.config"
+	debugFlag                  = "debug"
+	singleFlag                 = "single"
 )
 
 func main() {
@@ -31,6 +33,8 @@ func main() {
 	t411Password := flag.String(t411PasswordFlag, "", "[bot / t411] password")
 	t411Token := flag.String(t411TokenFlag, "", "[bot / t411] token (optional)")
 	t411URL := flag.String(t411URLFlag, "", "[bot / t411] url (optional)")
+	t411ConnectionMaxRetry := flag.Int(t411ConnectionMaxRetryFlag, 0, "[t411] connection max retry to t411 (<=0 for infinite)")
+	t411ConnectionInterval := flag.Int(t411ConnectionIntervalFlag, 0, "[t411] connection wait interval to t411")
 	bsUsername := flag.String(bsUsernameFlag, "", "[bot / bs] username")
 	bsPassword := flag.String(bsPasswordFlag, "", "[bot / bs] password")
 	bsKey := flag.String(bsKeyFlag, "", "[bot / bs] api key")
@@ -47,12 +51,15 @@ func main() {
 	log.Printf("[bot / t411] %s: %s\n", t411UsernameFlag, *t411Username)
 	log.Printf("[bot / t411] %s: %s\n", t411PasswordFlag, *t411Password)
 	log.Printf("[bot / t411] %s: %s\n", t411URLFlag, *t411URL)
+	log.Printf("[bot / t411] %s: %d\n", t411ConnectionMaxRetryFlag, *t411ConnectionMaxRetry)
+	log.Printf("[bot / t411] %s: %d\n", t411ConnectionIntervalFlag, *t411ConnectionInterval)
 	log.Printf("[bot / bs] %s: %s\n", bsUsernameFlag, *bsUsername)
 	log.Printf("[bot / bs] %s: %s\n", bsPasswordFlag, *bsPassword)
 	log.Printf("[bot / bs] %s: %s\n", bsKeyFlag, *bsKey)
 	log.Printf("[bot] %s: %t\n", debugFlag, *debug)
 
-	manager := makeTorrentManager(*debug, *single, *torrentsPath, *planningFetchFreq, *bsKey, *bsUsername, *bsPassword, *t411Username, *t411Password, *t411Token, *t411URL)
+	manager := makeTorrentManager(*debug, *single, *torrentsPath, *planningFetchFreq, *bsKey, *bsUsername,
+		*bsPassword, *t411Username, *t411Password, *t411Token, *t411URL, *t411ConnectionMaxRetry, *t411ConnectionInterval)
 	token, err := manager.t411Client.GetToken()
 	if err != nil {
 		token = err.Error()
