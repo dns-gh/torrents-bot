@@ -56,14 +56,6 @@ func throttleNewT411Client(t411URL, t411Username, t411Password, t411Token string
 		time.Sleep(time.Duration(waitInterval) * time.Second)
 		t411Client, err := t411.NewT411ClientWithToken(t411URL, t411Username, t411Password, t411Token)
 		if err != nil {
-			if err.Error() == t411.ErrTokenExpired.Error() {
-				t411Client, err2 := t411.NewT411ClientWithToken(t411URL, t411Username, t411Password, "")
-				if err2 != nil {
-					log.Println("Trying to retrieve a new token failed: %s", err2.Error())
-					continue
-				}
-				return t411Client, nil
-			}
 			log.Println(err.Error())
 			continue
 		}
