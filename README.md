@@ -2,7 +2,7 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/dns-gh/torrents-bot)](https://goreportcard.com/report/github.com/dns-gh/torrents-bot)
 
-torrents-bot is a Go bot managing tv show torrents. It uses t411 and betaseries APIs: https://api.t411.li/ and https://www.betaseries.com/api/
+torrents-bot is a Go bot managing tv show torrents. It uses t411 and betaseries APIs: https://api.t411.al/ (watch out for the domain name that can change over time) and https://www.betaseries.com/api/
 
 ## Motivation
 
@@ -42,7 +42,7 @@ and then set up your API keys/tokens/secrets in a torrents-bot.config file
 }
 ```
 
-You can get them here: http://www.t411.li/ and https://www.betaseries.com/api/
+You can get them here: http://www.t411.al/ (watch out for the domain name that can change over time)/ and https://www.betaseries.com/api/
 
 ## Build and usage
 
